@@ -40,13 +40,21 @@ from sklearn.model_selection import cross_val_score
 import urllib
 import requests
 
+# mlp = MLPClassifier(activation='relu', alpha=0.0001, batch_size='auto', beta_1=0.9,
+#            beta_2=0.999, early_stopping=False, epsilon=1e-08,
+#            hidden_layer_sizes=(20), learning_rate='constant',
+#            learning_rate_init=0.15, max_iter=1000, momentum=0.45,
+#            nesterovs_momentum=True, power_t=0.5, random_state=None,
+#            shuffle=True, solver='adam', tol=0.0001, validation_fraction=0.1,
+#            verbose=False, warm_start=False)
+
 mlp = MLPClassifier(activation='relu', alpha=0.0001, batch_size='auto', beta_1=0.9,
            beta_2=0.999, early_stopping=False, epsilon=1e-08,
-           hidden_layer_sizes=(20, 20), learning_rate='constant',
-           learning_rate_init=0.4, max_iter=10000, momentum=0.5,
+           hidden_layer_sizes=(20), learning_rate='constant',
+           learning_rate_init=0.1, max_iter=10000, momentum=0.5,
            nesterovs_momentum=True, power_t=0.5, random_state=None,
-           shuffle=True, solver='adam', tol=0.0001, validation_fraction=0.2,
-           verbose=False, warm_start=False)
+           shuffle=True, solver='adam', tol=0.0001, validation_fraction=0.1,
+           verbose=False, warm_start=False) 
 
 calibrating = 1
 serial_data = ''
@@ -88,6 +96,12 @@ def calibrate_specific(prompt, filename, num_samples, sock):
 
     if ready[0]:
       data, addr = sock.recvfrom(1024)
+      #split_data = data.split(',')
+      #temp = [int(split_data[0]), int(split_data[1]), int(split_data[2]), int(split_data[3]), \
+      #int(split_data[4]), int(split_data[5]), int(split_data[6]), int(split_data[7])]
+      #new_data = [np.mean([temp[0], temp[2]]), np.mean([temp[1], temp[3]]), np.mean([temp[4], temp[6]]), np.mean([temp[5], temp[7]])]
+      #print data
+      #data_string = str(int(new_data[0])) + ',' + str(int(new_data[1])) + ','  + str(int(new_data[2])) + ','  + str(int(new_data[3])) + '\n'
       print data
       fd.write(data)
 
@@ -99,7 +113,7 @@ def calibrate_specific(prompt, filename, num_samples, sock):
 
 def calibrate(filenames, sock):
 
-  num_samples = 200
+  num_samples = 250
 
   calibrate_specific("Remove everything from sensor area.", filenames[0], num_samples, sock)
   calibrate_specific("Place hand in 1st quadrant.", filenames[1], num_samples, sock)
@@ -113,10 +127,12 @@ def svm_classify(input_data):
     split_data = input_data.split(',')
     temp = [int(split_data[0]), int(split_data[1]), int(split_data[2]), int(split_data[3]), \
         int(split_data[4]), int(split_data[5]), int(split_data[6]), int(split_data[7])]
+    #data = [np.mean([temp[0], temp[2]]), np.mean([temp[1], temp[3]]), np.mean([temp[4], temp[6]]), np.mean([temp[5], temp[7]])]
     #print temp
-    data = np.array(temp).reshape((1,-1))
+    #print data
+    new_data = np.array(temp).reshape((1,-1))
 
-    prediction = mlp.predict(data)
+    prediction = mlp.predict(new_data)
     return prediction
     #print prediction
 
@@ -155,12 +171,7 @@ def train_learner_mlp(filenames):#, e, f):
     remove_nans(swipe_e)
     swipe_e_class = np.ones(swipe_e.shape[0]) * 0
 
-    # swipe_f = pd.read_csv(f)
-    # swipe_f = swipe_f.as_matrix()
-    # #swipe_d = swipe_d[:,0:8]
-    # swipe_f_class = np.ones(swipe_f.shape[0]) * 1
-
-    X = np.concatenate((swipe_a, swipe_b,  swipe_c, swipe_d, swipe_e), axis=0)#, swipe_e, swipe_f), axis=0)
+    X = np.concatenate((swipe_a, swipe_b, swipe_c, swipe_d, swipe_e), axis=0)#, swipe_e, swipe_f), axis=0)
     y = np.concatenate((swipe_a_class, swipe_b_class, swipe_c_class, \
         swipe_d_class, swipe_e_class), axis=0)#, swipe_e_class, swipe_f_class), axis=0)
 
@@ -196,10 +207,16 @@ def run():
   sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   sock.setblocking(0)
 
-  calibrate(filenames, sock)
+  #calibrate(filenames, sock)
 
   train_learner_mlp(filenames)
 
+  #fd = open("quad4.csv")
+
+  # for line in fd:
+  #   print svm_classify(line)
+
+  
   data = ''
   result = [0]
 
